@@ -22,47 +22,49 @@ button_mask = const(
 
 i2c_bus = board.STEMMA_I2C()  # The built-in STEMMA QT connector on the microcontroller
 
-seesaw = Seesaw(i2c_bus, addr=0x50)
+seesaw: Seesaw = Seesaw(i2c_bus, addr=0x50)
 
 seesaw.pin_mode_bulk(button_mask, seesaw.INPUT_PULLUP)
 
-last_x = 0
-last_y = 0
+last_x: int = 0
+last_y: int = 0
 
-brightness = 0.33
+brightness: float = 0.33
 
-t_blink = 0
-blink_eyes_open_duration = 160
-blink_eyes_closed_duration = 4
-blink_eyelid_frames = 5
-blink_start = blink_eyes_open_duration
-blink_eyes_close_start = blink_start + blink_eyelid_frames
-blink_eyes_close_end = blink_eyes_close_start + blink_eyes_closed_duration
-blink_end = blink_eyes_close_end + blink_eyelid_frames
-inverseCloseStartMinusBlinkStart = 1/(blink_eyes_close_start - blink_start)
-inverseBlinkEndMinusCloseEnd = 1/(blink_end - blink_eyes_close_end)
+t_blink: int = 0
+blink_eyes_open_duration: int = 160
+blink_eyes_closed_duration: int = 4
+blink_eyelid_frames: int = 5
+blink_start: int = blink_eyes_open_duration
+blink_eyes_close_start: int = blink_start + blink_eyelid_frames
+blink_eyes_close_end: int = blink_eyes_close_start + blink_eyes_closed_duration
+blink_end: int = blink_eyes_close_end + blink_eyelid_frames
+inverseCloseStartMinusBlinkStart: float = 1/(blink_eyes_close_start - blink_start)
+inverseBlinkEndMinusCloseEnd: float = 1/(blink_end - blink_eyes_close_end)
 
-num_pixels = 128
-eye_right = neopixel.NeoPixel(board.D13,num_pixels,auto_write=False,brightness=brightness)
+num_pixels: int = 128
+eye_right: neopixel.NeoPixel = neopixel.NeoPixel(board.D13,num_pixels,auto_write=False,brightness=brightness)
 
-debugLight = neopixel.NeoPixel(board.D4,1,brightness=brightness)
+debugLight: neopixel.NeoPixel = neopixel.NeoPixel(board.D4,1,brightness=brightness)
 
-RED = (127, 0, 0)
-YELLOW = (255, 255, 0)
-GREEN = (0, 127, 0)
-CYAN = (0, 255, 255)
-BLUE = (0, 0, 127)
-MAGENTA = (255, 0, 255)
+# colors here are represented a 1 byte per color
+
+RED: tuple[int, int, int] = (127, 0, 0)
+YELLOW: tuple[int, int, int] = (255, 255, 0)
+GREEN: tuple[int, int, int] = (0, 127, 0)
+CYAN: tuple[int, int, int] = (0, 255, 255)
+BLUE: tuple[int, int, int] = (0, 0, 127)
+MAGENTA: tuple[int, int, int] = (255, 0, 255)
 
 GRADIENTS = [[RED,YELLOW],[YELLOW,GREEN],[GREEN,CYAN],[CYAN,BLUE],[BLUE,MAGENTA],[MAGENTA,RED]]
 
 def HSVtoRGB(h: float, s: float, v: float):
-    c = v * s
-    x = c * (1 - abs((h / 60) % 2 - 1))
-    m = v - c
-    r = 0
-    g = 0
-    b = 0
+    c: float = v * s
+    x: float = c * (1 - abs((h / 60) % 2 - 1))
+    m: float = v - c
+    r: float = 0
+    g: float = 0
+    b: float = 0
     if h >= 0 and h < 60:
         r = c
         g = x
@@ -86,7 +88,7 @@ def HSVtoRGB(h: float, s: float, v: float):
     b = (b + m) * 255
     return (int(r), int(g), int(b))
 
-def GetColor_HSV(h,s,v):
+def GetColor_HSV(h,s,v) -> tuple[int, int, int]:
     while h > 360:
         h = h - 360
     color3 = HSVtoRGB(h,s,v)
@@ -94,7 +96,7 @@ def GetColor_HSV(h,s,v):
 
 conversionFactor = 7/1024
 
-def GetJoyIn():
+def GetJoyIn() -> tuple[int, int]:
     #seesaw.
     try:
         xInRaw: int = (1023 - seesaw.analog_read(14)) - 511
@@ -114,25 +116,23 @@ def GetJoyIn():
     except:
         return (4,4)
 
-framerate = 120
-dt = 1/framerate
-
-scan = 0
+framerate: int = 120
+dt: float = 1/framerate
 
 class Eye:
-    def __init__(self,center: tuple,width: int,height: int,orientation: int, isRight: bool, neopixel):
-        self.center = center
-        self.width:int = width
-        self.height:int = height
+    def __init__(self,center: tuple[int, int],width: int,height: int,orientation: int, isRight: bool, neopixel: neopixel.NeoPixel):
+        self.center: tuple[int, int] = center
+        self.width: int = width
+        self.height: int = height
         self.neopixel = neopixel
-        self.isRight = isRight
-        self.R = []
-        self.G = []
-        self.B = []
-        self.R_prev = []
-        self.G_prev = []
-        self.B_prev = []
-        self.orientation = orientation
+        self.isRight: bool = isRight
+        self.R: list[int] = []
+        self.G: list[int] = []
+        self.B: list[int] = []
+        self.R_prev: list[int] = []
+        self.G_prev: list[int] = []
+        self.B_prev: list[int] = []
+        self.orientation: int = orientation
         for i in range(64):
             self.R.append(0)
             self.G.append(0)
@@ -142,15 +142,15 @@ class Eye:
             self.B_prev.append(0)
 
     def blit(eye,):
-        j = 0
+        j: int = 0
         for x in range(8):
             for y in range(8):
-                iOut = 0
-                i = y + x * 8 
-                if x%2 == 0:
-                    iOut = (7-y) + x*8
+                iOut: int = 0
+                i = y + x * 8
+                if x % 2 == 0:
+                    iOut = (7 - y) + x * 8
                 else:
-                    iOut = y + x*8
+                    iOut = y + x * 8
                 if not eye.isRight:
                     iOut = iOut + 64
                 eye.neopixel[iOut] = (eye.R[i], eye.G[i], eye.B[i])
@@ -162,11 +162,27 @@ class Eye:
     def show(eye):
         eye.neopixel.show()
     
-    def updateGradientPattern_HSV(eye,h:int,xyIn, buttons):
-        xIn = xyIn[0]
-        yIn = xyIn[1]
-        cX = eye.center[0]-xIn
-        cY = eye.center[1]-yIn
+    def updateGradientPattern_HSV(eye,h:int,xyIn: tuple[int, int], buttons):
+        xIn: int = xyIn[0]
+        yIn: int = xyIn[1]
+        cX: int = eye.center[0]-xIn
+        cY: int = eye.center[1]-yIn
+
+        yDist: int = 0
+        yDistSq: int = 0
+        xDist: int = 0
+        distSq: int = 0
+        dist: float = 0
+
+        s: float = 0
+        v: float = 0
+
+        pixelH: float = 0
+
+        i: int = 0
+
+        color: tuple[int, int, int] = (0,0,0)
+
         for y in range(8):
             yDist = abs(y-cY)
             yDistSq = yDist*yDist
@@ -234,7 +250,7 @@ class Eye:
                 eye.G[i] = color[1]
                 eye.B[i] = color[2]
 
-    def applyBlink(eye,t):
+    def applyBlink(eye,t: int) -> int:
         if not buttons & (1 << BUTTON_SELECT):
             return t
         elif not buttons & (1 << BUTTON_START):
@@ -244,11 +260,11 @@ class Eye:
         elif not buttons & (1 << BUTTON_X):
             return t
         
-
         t = t+1
         if t > blink_end:
             return 0
         
+        z:float = 0
 
         if t >= blink_start:
             if t <= blink_eyes_close_start:
@@ -285,11 +301,14 @@ class Eye:
                             eye.B[i] = 0
         return t
     
-    def applyEyeMask(eye, xyIn, buttons):
-        xIn = xyIn[0]
-        yIn = xyIn[1]
-        cX = eye.center[0]-xIn -1
-        cY = eye.center[1]-yIn -1
+    def applyEyeMask(eye, xyIn: tuple[int, int], buttons):
+        xIn: int = xyIn[0]
+        yIn: int = xyIn[1]
+        cX: int = eye.center[0]-xIn -1
+        cY: int = eye.center[1]-yIn -1
+        i: int = 0
+        j: int = 0
+
         if not buttons & (1 << BUTTON_SELECT):
             for x in range(8):
                 for y in range(8): 
@@ -326,7 +345,6 @@ class Eye:
                             eye.G[i] =  0
                             eye.B[i] =  0
         elif not buttons & (1 << BUTTON_B):
-            r = 10
             for y in range(8):
                 for x in range(8): 
                     i = y + x * 8
@@ -344,8 +362,16 @@ class Eye:
                             eye.B[i] =  0
                             continue
 
-
     def applyRotation(eye):
+        i: int = 0
+        i2: int = 0
+        i3: int = 0
+        i4: int = 0
+
+        tempR: int = 0
+        tempG: int = 0
+        tempB: int = 0
+
         for r in range(eye.orientation):
             for x in range(4):
                 for y in range(x,7-x):
@@ -377,15 +403,21 @@ class Eye:
                     eye.G[i3] = eye.G[i4]
                     eye.B[i3] = eye.B[i4]
 
-                    
                     eye.R[i4] = tempR
                     eye.G[i4] = tempG
                     eye.B[i4] = tempB
 
     def applyChromaticAbberation(eye):
-        rSample = []
-        gSample = []
-        bSample = []
+        rSample: list[int] = []
+        gSample: list[int] = []
+        bSample: list[int] = []
+
+        i: int = 0
+        l: int = 0
+        r: int = 0
+        u: int = 0
+        d: int = 0
+
         for i in range(64):
             rSample.append(eye.R[i])
             gSample.append(eye.G[i])
@@ -398,28 +430,27 @@ class Eye:
                 r = i + 1
                 u = i - 8
                 d = i + 8
-                eye.R[i] = rSample[i] * 0.8 + rSample[l] * 0.1 + rSample[u] * 0.1
+                eye.R[i] = int(rSample[i] * 0.8 + rSample[l] * 0.1 + rSample[u] * 0.1)
                 eye.G[i] = gSample[i]
-                eye.B[i] = bSample[i] * 0.8 + bSample[r] * 0.1 + bSample[d] * 0.1
+                eye.B[i] = int(bSample[i] * 0.8 + bSample[r] * 0.1 + bSample[d] * 0.1)
 
     def applyGhost(eye):
         for i in range(64):
-            eye.R[i] = eye.R[i] * 0.7 + eye.R_prev[i] * 0.3
-            eye.G[i] = eye.G[i] * 0.9 + eye.G_prev[i] * 0.1
-            eye.B[i] = eye.B[i] * 0.8 + eye.B_prev[i] * 0.2
+            eye.R[i] = int(eye.R[i] * 0.7 + eye.R_prev[i] * 0.3)
+            eye.G[i] = int(eye.G[i] * 0.9 + eye.G_prev[i] * 0.1)
+            eye.B[i] = int(eye.B[i] * 0.8 + eye.B_prev[i] * 0.2)
 
-eye_L = Eye((4,4),3,3,3,False,eye_right)
-eye_R = Eye((4,4),3,3,0,True,eye_right)
+eye_L: Eye = Eye((4,4),3,3,3,False,eye_right)
+eye_R: Eye = Eye((4,4),3,3,0,True,eye_right)
 
-gradT = 0
-h = random.randrange(0,359)
+gradT: int = 0
+h: int = random.randrange(0,359)
 
-isRed = False
-
+isRed: bool = False
 
 while True:
     buttons = seesaw.digital_read_bulk(button_mask)
-    xyIn = GetJoyIn()
+    xyIn: tuple[int, int] = GetJoyIn()
 
     eye_L.updateGradientPattern_HSV(h,xyIn, buttons)
     eye_R.updateGradientPattern_HSV(h,xyIn, buttons)
@@ -427,7 +458,6 @@ while True:
     eye_L.applyBlink(t_blink)
     t_blink =  eye_R.applyBlink(t_blink)
     
-
     eye_L.applyEyeMask(xyIn, buttons)
     eye_R.applyEyeMask(xyIn, buttons)
 
@@ -443,6 +473,7 @@ while True:
     eye_R.blit()
     eye_L.blit()
     eye_R.show()
+
     if isRed:
         debugLight.fill((0,0,255))
         isRed = False
